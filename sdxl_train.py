@@ -714,7 +714,7 @@ def train(args):
 
     if is_main_process:
         src_path = src_stable_diffusion_ckpt if save_stable_diffusion_format else src_diffusers_model_path
-        print(accelerator.get_state_dict(unet).keys())
+        print(accelerator.get_state_dict(text_encoder1).keys())
         sdxl_train_util.save_sd_model_on_train_end(
             args,
             src_path,
