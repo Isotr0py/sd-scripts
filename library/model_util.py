@@ -1190,6 +1190,8 @@ def save_stable_diffusion_checkpoint(
             state_dict[key] = v
 
     # Convert the UNet model
+    print(unet.state_dict())
+    print("Convert the UNet model")
     unet_state_dict = convert_unet_state_dict_to_sd(v2, unet.state_dict())
     update_sd("model.diffusion_model.", unet_state_dict)
 
