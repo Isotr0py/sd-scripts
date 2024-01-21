@@ -4,67 +4,58 @@ import argparse
 import ast
 import asyncio
 import datetime
-import importlib
-import json
-import pathlib
-import re
-import shutil
-import time
-from typing import (
-    Dict,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
-from accelerate import Accelerator, InitProcessGroupKwargs, DistributedDataParallelKwargs
 import gc
 import glob
+import hashlib
+import importlib
+import json
 import math
 import os
+import pathlib
 import random
-import hashlib
+import re
+import shutil
 import subprocess
+import time
+from functools import partial
 from io import BytesIO
-import toml
+from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 
-from tqdm import tqdm
+import cv2
+import numpy as np
+import safetensors.torch
+import toml
 import torch
+import torch.nn as nn
+import transformers
+from accelerate import (Accelerator, DistributedDataParallelKwargs,
+                        FullyShardedDataParallelPlugin, InitProcessGroupKwargs)
+from diffusers import (AutoencoderKL, DDIMScheduler, DDPMScheduler,
+                       DPMSolverMultistepScheduler,
+                       DPMSolverSinglestepScheduler,
+                       EulerAncestralDiscreteScheduler, EulerDiscreteScheduler,
+                       HeunDiscreteScheduler, KDPM2AncestralDiscreteScheduler,
+                       KDPM2DiscreteScheduler, LMSDiscreteScheduler,
+                       PNDMScheduler, StableDiffusionPipeline)
+from diffusers.optimization import TYPE_TO_SCHEDULER_FUNCTION, SchedulerType
+from huggingface_hub import hf_hub_download
+from PIL import Image
+from torch.distributed.fsdp.fully_sharded_data_parallel import (
+    FullOptimStateDictConfig, FullStateDictConfig, ShardingStrategy)
+from torch.distributed.fsdp.wrap import _module_wrap_policy
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Optimizer
 from torchvision import transforms
-from transformers import CLIPTokenizer, CLIPTextModel, CLIPTextModelWithProjection
-import transformers
-from diffusers.optimization import SchedulerType, TYPE_TO_SCHEDULER_FUNCTION
-from diffusers import (
-    StableDiffusionPipeline,
-    DDPMScheduler,
-    EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler,
-    DPMSolverSinglestepScheduler,
-    LMSDiscreteScheduler,
-    PNDMScheduler,
-    DDIMScheduler,
-    EulerDiscreteScheduler,
-    HeunDiscreteScheduler,
-    KDPM2DiscreteScheduler,
-    KDPM2AncestralDiscreteScheduler,
-    AutoencoderKL,
-)
-from library import custom_train_functions
-from library.original_unet import UNet2DConditionModel
-from huggingface_hub import hf_hub_download
-import numpy as np
-from PIL import Image
-import cv2
-import safetensors.torch
-from library.lpw_stable_diffusion import StableDiffusionLongPromptWeightingPipeline
-import library.model_util as model_util
-import library.huggingface_util as huggingface_util
-import library.sai_model_spec as sai_model_spec
+from tqdm import tqdm
+from transformers import (CLIPTextModel, CLIPTextModelWithProjection,
+                          CLIPTokenizer)
 
+import library.huggingface_util as huggingface_util
+import library.model_util as model_util
+import library.sai_model_spec as sai_model_spec
+from library import custom_train_functions
+from library.lpw_stable_diffusion import \
+    StableDiffusionLongPromptWeightingPipeline
 # from library.attention_processors import FlashAttnProcessor
 # from library.hypernetwork import replace_attentions_for_hypernetwork
 from library.original_unet import UNet2DConditionModel
@@ -3899,12 +3890,25 @@ def prepare_accelerator(args: argparse.Namespace):
         else None,
     )
     kwargs_handlers = list(filter(lambda x: x is not None, kwargs_handlers))
+
+    fsdp_plugin = FullyShardedDataParallelPlugin(
+        use_orig_params=True,
+        auto_wrap_policy=partial(
+            _module_wrap_policy,
+            module_classes={nn.Linear},
+        ),
+        sharding_strategy=ShardingStrategy.FULL_SHARD,
+        state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=True),
+        optim_state_dict_config=FullOptimStateDictConfig(offload_to_cpu=True, rank0_only=True),
+    )
+
     accelerator = Accelerator(
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision=args.mixed_precision,
         log_with=log_with,
         project_dir=logging_dir,
         kwargs_handlers=kwargs_handlers,
+        fsdp_plugin=fsdp_plugin,
         dynamo_backend=dynamo_backend,
     )
     return accelerator
