@@ -701,9 +701,9 @@ def train(args):
 
     is_main_process = accelerator.is_main_process
     # if is_main_process:
-    unet = accelerator.unwrap_model(unet)
-    text_encoder1 = accelerator.unwrap_model(text_encoder1)
-    text_encoder2 = accelerator.unwrap_model(text_encoder2)
+    # unet = accelerator.unwrap_model(unet)
+    # text_encoder1 = accelerator.unwrap_model(text_encoder1)
+    # text_encoder2 = accelerator.unwrap_model(text_encoder2)
 
     accelerator.end_training()
 
