@@ -1165,6 +1165,7 @@ def save_stable_diffusion_checkpoint(
     v2, output_file, text_encoder, unet, ckpt_path, epochs, steps, metadata, save_dtype=None, vae=None
 ):
     if ckpt_path is not None:
+        print("loading checkpoint:", ckpt_path)
         # epoch/stepを参照する。またVAEがメモリ上にないときなど、もう一度VAEを含めて読み込む
         checkpoint, state_dict = load_checkpoint_with_text_encoder_conversion(ckpt_path)
         if checkpoint is None:  # safetensors または state_dictのckpt
@@ -1190,8 +1191,6 @@ def save_stable_diffusion_checkpoint(
             state_dict[key] = v
 
     # Convert the UNet model
-    print(unet.state_dict())
-    print("Convert the UNet model")
     unet_state_dict = convert_unet_state_dict_to_sd(v2, unet.state_dict())
     update_sd("model.diffusion_model.", unet_state_dict)
 
