@@ -1177,6 +1177,7 @@ def save_stable_diffusion_checkpoint(
             del state_dict["state_dict"]
     else:
         # 新しく作る
+        print("create new checkpoint")
         assert vae is not None, "VAE is required to save a checkpoint without a given checkpoint"
         checkpoint = {}
         state_dict = {}
