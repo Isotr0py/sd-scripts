@@ -710,7 +710,7 @@ def train(args):
     if args.save_state:  # and is_main_process:
         train_util.save_state_on_train_end(args, accelerator)
 
-    del accelerator  # この後メモリを使うのでこれは消す
+    # del accelerator  # この後メモリを使うのでこれは消す
 
     if is_main_process:
         src_path = src_stable_diffusion_ckpt if save_stable_diffusion_format else src_diffusers_model_path
