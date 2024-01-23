@@ -814,7 +814,7 @@ class NetworkTrainer:
                             params_to_clip = accelerator.unwrap_model(network).get_trainable_params()
                             accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
                     grads = [v.grad for k,v in network.named_parameters() if v.grad is not None]
-                    print(f"\nRank {accelerator.process_index}, loss: {loss:.5f}, grad: {grads[0].mean().tiem():.5f}, sync:{accelerator.sync_gradients}")
+                    print(f"\nRank {accelerator.process_index}, loss: {loss:.5f}, grad: {grads[0].mean().item():.5f}, sync:{accelerator.sync_gradients}")
 
                     optimizer.step()
                     lr_scheduler.step()
